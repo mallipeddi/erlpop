@@ -1,9 +1,10 @@
-INCLUDE=include/
-OUTDIR=ebin
-
 all:
-	if [ ! -d $(OUTDIR) ]; then mkdir $(OUTDIR); fi
-	erlc -I $(INCLUDE) -o $(OUTDIR) src/*.erl
+	./rebar compile
 
 clean:
-	rm $(OUTDIR)/*.beam
+	./rebar clean
+
+test:
+	./rebar eunit skip_deps=true
+
+.PHONY: all clean test

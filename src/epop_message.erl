@@ -21,24 +21,26 @@
 -export([parse/1, find_header/2]).
 
 parse(Message) ->
-    {_, Boundary, _} = regexp:first_match(Message, "\r\n\r\n"),
+    Boundary = string:str(Message, "\r\n\r\n"),
+    Boundary>0 orelse error({parse_failed, end_of_header_not_found}),
     Header = string:substr(Message, 1, Boundary - 1),
     Body = string:substr(Message, Boundary + 4),
     Headers = parse_headers(Header),
     {message, Headers, Body}.
 
-parse_headers(Header) ->    
+parse_headers(Header) ->
     %% do "unfolding" first
     %% read more about unfolding long header fields here - http://www.faqs.org/rfcs/rfc2822.html
-    {ok, Chunks} = regexp:split(Header, "\r\n[ |\t]"),
-    UnfoldedHeader = string:join(Chunks, " "),
-    
-    {ok, RawHeaders} = regexp:split(UnfoldedHeader, "\r\n"),
+    %% "Unfolding is accomplished by simply removing any CRLF
+    %% that is immediately followed by WSP"
+    UnfoldedHeader = re:replace(Header, "\r\n(?=[ \t])","", [{return,list},global]),
+    RawHeaders = re:split(UnfoldedHeader, "\r\n", [{return, list}]),
     %io:format("raw headers = ~n~p~n", [RawHeaders]),
     lists:map(fun parse_header/1, RawHeaders).
 
 parse_header(RawHeader) ->
-    {_, Boundary, _} = regexp:first_match(RawHeader, ":"),
+    Boundary = string:str(RawHeader, ":"),
+    Boundary>0 orelse error({parse_failed, end_of_header_name_found}),
     HeaderName = string:strip(string:substr(RawHeader, 1, Boundary - 1)),
     HeaderVal = string:strip(string:substr(RawHeader, Boundary + 1)),
     {header, HeaderName, HeaderVal}.
